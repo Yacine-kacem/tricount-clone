@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Group Details</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1 id="group-name">Loading...</h1>
+
+    <div class="card">
+        <h2>Members</h2>
+        <ul id="member-list"></ul>
+        <form id="member-form">
+            <input type="number" id="member-id" placeholder="Member ID" required>
+            <input type="text" id="member-name" placeholder="Member Name" required>
+            <button type="submit">Add Member</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Expenses</h2>
+        <ul id="expense-list"></ul>
+        <form id="expense-form">
+            <input type="number" id="expense-id" placeholder="Expense ID" required>
+            <input type="text" id="expense-description" placeholder="Description" required>
+            <input type="number" id="expense-amount" placeholder="Amount" step="0.01" required>
+            <input type="number" id="expense-paid-by" placeholder="Paid by (member id)" required>
+            <input type="text" id="expense-split" placeholder="Split among (comma-separated ids)" required>
+            <button type="submit">Add Expense</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Balances</h2>
+        <ul id="balance-list"></ul>
+    </div>
+
+    <div class="card">
+        <h2>Settlements</h2>
+        <form id="settlement-form">
+            <input type="number" id="settlement-id" placeholder="Settlement ID" required>
+            <input type="number" id="settlement-from" placeholder="From (member id)" required>
+            <input type="number" id="settlement-to" placeholder="To (member id)" required>
+            <input type="number" id="settlement-amount" placeholder="Amount" step="0.01" required>
+            <button type="submit">Record Settlement</button>
+        </form>
+        <ul id="settlement-list"></ul>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const groupId = params.get("id");
+        document.getElementById("member-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const id = document.getElementById("member-id").value;
+            const name = document.getElementById("member-name").value;
+
+            fetch(`/groups/${groupId}/members`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: parseInt(id), name: name })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("member-list");
+                const item = document.createElement("li");
+                item.textContent = data.name;
+                list.appendChild(item);
+            });
+        });
+        document.getElementById("expense-form").addEventListener("submit",function(event){
+            event.preventDefault();
+            const id=document.getElementById("expense-id").value;
+            const description=document.getElementById("expense-description").value;
+            const amount=document.getElementById("expense-amount").value;
+            const paidby=document.getElementById("expense-paid-by").value;
+            const expense_split=document.getElementById("expense-split").value;
+            const splitArray = expense_split.split(",").map(Number);
+            fetch(`/groups/${groupId}/expenses`,{
+                method:"POST",
+                headers:{"content-type":"application/json"},
+                body: JSON.stringify({ id: parseInt(id), description:description,amount:parseFloat(amount),paid_by:parseInt(paidby),split_among:splitArray })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("expense-list");
+                const item = document.createElement("li");
+                item.textContent = `${data.description}: ${data.amount}`;
+                list.appendChild(item);
+            });
+        });
+        document.getElementById("settlement-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const id = document.getElementById("settlement-id").value;
+            const fromMember = document.getElementById("settlement-from").value;
+            const toMember = document.getElementById("settlement-to").value;
+            const amount = document.getElementById("settlement-amount").value;
+
+            fetch(`/groups/${groupId}/settlements`,{
+                method:"POST",
+                headers:{"content-Type":"application/json"},
+                body: JSON.stringify({
+                    id:parseInt(id),from_member:parseInt(fromMember),to_member:parseInt(toMember),amount:parseFloat(amount)
+                })
+            })
+            .then(response=> response.json())
+            .then(data=>{
+                const list=document.getElementById("settlement-list");
+                const item=document.createElement("li");
+               item.textContent = `Member ${data.from_member} paid Member ${data.to_member}: ${data.amount}`;
+                list.appendChild(item);
+            });
+        });
+
+        fetch(`/groups/${groupId}/members`)
+        .then(response => response.json())
+        .then(data => {
+            const list = document.getElementById("member-list");
+           data.forEach(member => {
+                const item = document.createElement("li");
+                item.textContent = member[1] + " ";
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "Delete";
+                deleteBtn.onclick = function() {
+                    fetch(`/groups/${groupId}/members/${member[0]}`, { method: "DELETE" })
+                        .then(() => item.remove());
+                };
+
+                item.appendChild(deleteBtn);
+                list.appendChild(item);
+            });
+        });
+        fetch(`/groups/${groupId}/expenses`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("expense-list");
+                data.forEach(expense => {
+                    const item = document.createElement("li");
+                    item.textContent = `${expense[1]}: ${expense[2]} `;
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.onclick = function() {
+                        fetch(`/groups/${groupId}/expenses/${expense[0]}`, { method: "DELETE" })
+                            .then(() => item.remove());
+                    };
+
+                    item.appendChild(deleteBtn);
+                    list.appendChild(item);
+                });
+            });
+        fetch(`/groups/${groupId}/balances`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("balance-list");
+                for (const memberId in data) {
+                    const item = document.createElement("li");
+                    const value = data[memberId];
+                    const cssClass = value >= 0 ? "balance-positive" : "balance-negative";
+                    item.innerHTML = `Member ${memberId}: <span class="${cssClass}">${value}</span>`;
+                    list.appendChild(item);
+                }
+            });
+        fetch(`/groups/${groupId}/settlements`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("settlement-list");
+                data.forEach(settlement => {
+                    const item = document.createElement("li");
+                    item.textContent = `Member ${settlement[2]} paid Member ${settlement[3]}: ${settlement[4]} `;
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.onclick = function() {
+                        fetch(`/groups/${groupId}/settlements/${settlement[0]}`, { method: "DELETE" })
+                            .then(() => item.remove());
+                    };
+
+                    item.appendChild(deleteBtn);
+                    list.appendChild(item);
+                });
+            });
+        fetch(`/groups`)
+            .then(response => response.json())
+            .then(data => {
+                const group = data.find(g => g[0] === parseInt(groupId));
+                if (group) {
+                    document.getElementById("group-name").textContent = group[1];
+                }
+            });
+    </script>
+</body>
+</html>

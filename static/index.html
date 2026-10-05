@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tricount Clone</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>My Tricount Groups</h1>
+    <ul id="group-list"></ul>
+    <form id="group-form">
+    <input type="number" id="group-id" placeholder="Group ID" required>
+    <input type="text" id="group-name" placeholder="Group Name" required>
+    <button type="submit">Create Group</button>
+</form>
+    <script>
+        fetch("/groups")
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("group-list");
+                data.forEach(group => {
+                    const item = document.createElement("li");
+                    item.innerHTML = `<a href="group.html?id=${group[0]}">${group[1]}</a>`; 
+                    list.appendChild(item);
+                });
+            });
+    document.getElementById("group-form").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const id = document.getElementById("group-id").value;
+        const name = document.getElementById("group-name").value;
+
+        fetch("/groups", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: parseInt(id), name: name, members: [] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const list = document.getElementById("group-list");
+            const item = document.createElement("li");
+            item.innerHTML = `<a href="group.html?id=${data.id}">${data.name}</a>`;
+            list.appendChild(item);
+        });
+    });
+    </script>
+</body>
+</html>
